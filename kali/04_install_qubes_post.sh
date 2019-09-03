@@ -8,6 +8,9 @@ fi
 source "${SCRIPTSDIR}/vars.sh"
 source "${SCRIPTSDIR}/distribution.sh"
 
+## Adapated from Whonix template
+## See https://github.com/Whonix/qubes-template-whonix
+
 ## If .prepared_debootstrap has not been completed, don't continue.
 exitOnNoFile "${INSTALLDIR}/${TMPDIR}/.prepared_qubes" "prepared_qubes installation has not completed!... Exiting"
 
