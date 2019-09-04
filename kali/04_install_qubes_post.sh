@@ -23,9 +23,9 @@ trap cleanup EXIT
 prepareChroot
 
 if [ "$(type -t chroot_cmd)" = "function" ]; then
-   chroot_cmd="chroot_cmd"
+    chroot_cmd="chroot_cmd"
 else
-   chroot_cmd="chroot"
+    chroot_cmd="chroot"
 fi
 
 mount --bind /dev "${INSTALLDIR}/dev"
@@ -69,13 +69,16 @@ echo "$kali_repository_apt_line" > "${INSTALLDIR}/$kali_repository_apt_sources_l
 
 aptUpdate
 
+KALI_PACKAGES=kali-menu
 if [ "${TEMPLATE_FLAVOR}" = "kali" ]; then
-   aptInstall kali-linux-full
+    KALI_PACKAGES="$KALI_PACKAGES kali-linux-full"
 elif [ "${TEMPLATE_FLAVOR}" = "kali-all" ]; then
-   aptInstall kali-linux-all
+    KALI_PACKAGES="$KALI_PACKAGES kali-linux-all"
 else
-   error "TEMPLATE_FLAVOR is neither kali nor kali-all, it is: ${TEMPLATE_FLAVOR}"
+    error "TEMPLATE_FLAVOR is neither kali nor kali-all, it is: ${TEMPLATE_FLAVOR}"
 fi
+
+aptInstall $KALI_PACKAGES
 
 uninstallQubesRepo
 
@@ -90,10 +93,10 @@ updateLocale
 UWT_DEV_PASSTHROUGH="1" aptRemove ntpdate || true
 
 UWT_DEV_PASSTHROUGH="1" \
-   DEBIAN_FRONTEND="noninteractive" \
-   DEBIAN_PRIORITY="critical" \
-   DEBCONF_NOWARNINGS="yes" \
-      $chroot_cmd apt-get ${APT_GET_OPTIONS} autoremove
+    DEBIAN_FRONTEND="noninteractive" \
+    DEBIAN_PRIORITY="critical" \
+    DEBCONF_NOWARNINGS="yes" \
+        $chroot_cmd apt-get ${APT_GET_OPTIONS} autoremove
 
 ## Cleanup.
 umount_all "${INSTALLDIR}/" || true
