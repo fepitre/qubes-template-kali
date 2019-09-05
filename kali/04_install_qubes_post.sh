@@ -39,8 +39,6 @@ installQubesRepo
 env
 
 [ -n "$kali_repository_uri" ] || kali_repository_uri="http://http.kali.org/kali"
-
-## Better to build from buster-proposed-updates to test the upgrades.
 [ -n "$kali_repository_suite" ] || kali_repository_suite="kali-rolling"
 [ -n "$kali_signing_key_fingerprint" ] || kali_signing_key_fingerprint="44C6513A8E4FB3D30875F758ED444FF07D8D0BF6"
 [ -n "$kali_signing_key_file" ] || kali_signing_key_file="$BUILDER_DIR/$SRC_DIR/template-kali/keys/kali-key.asc"
@@ -52,14 +50,10 @@ env
 
 kali_signing_key_file_name="$(basename "$kali_signing_key_file")"
 
-## Debugging.
 test -f "$kali_signing_key_file"
-
 cp "$kali_signing_key_file" "${INSTALLDIR}/${TMPDIR}/${kali_signing_key_file_name}"
 
-## Debugging.
 $chroot_cmd test -f "${TMPDIR}/${kali_signing_key_file_name}"
-
 $chroot_cmd apt-key --keyring "$apt_target_key" add "${TMPDIR}/${kali_signing_key_file_name}"
 
 ## Sanity test. apt-key adv would exit non-zero if not exactly that fingerprint in apt's keyring.
@@ -68,6 +62,7 @@ $chroot_cmd apt-key --keyring "$apt_target_key" adv --fingerprint "$kali_signing
 echo "$kali_repository_apt_line" > "${INSTALLDIR}/$kali_repository_apt_sources_list"
 
 aptUpdate
+aptDistUpgrade
 
 KALI_PACKAGES=kali-menu
 if [ "${TEMPLATE_FLAVOR}" = "kali" ]; then
@@ -82,21 +77,10 @@ aptInstall $KALI_PACKAGES
 
 uninstallQubesRepo
 
-## Workaround for Qubes bug:
-## 'Debian Template: rely on existing tool for base image creation'
-## https://github.com/QubesOS/qubes-issues/issues/1055
 updateLocale
 
-## Workaround. ntpdate needs to be removed here, because it can not be removed from
-## template_debian/packages_qubes.list, because that would break minimal Debian templates.
-## https://github.com/QubesOS/qubes-issues/issues/1102
-UWT_DEV_PASSTHROUGH="1" aptRemove ntpdate || true
-
-UWT_DEV_PASSTHROUGH="1" \
-    DEBIAN_FRONTEND="noninteractive" \
-    DEBIAN_PRIORITY="critical" \
-    DEBCONF_NOWARNINGS="yes" \
-        $chroot_cmd apt-get ${APT_GET_OPTIONS} autoremove
+UWT_DEV_PASSTHROUGH="1" DEBIAN_FRONTEND="noninteractive" DEBIAN_PRIORITY="critical" DEBCONF_NOWARNINGS="yes" \
+    $chroot_cmd $eatmydata_maybe apt-get ${APT_GET_OPTIONS} autoremove
 
 ## Cleanup.
 umount_all "${INSTALLDIR}/" || true
