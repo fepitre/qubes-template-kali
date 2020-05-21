@@ -66,9 +66,11 @@ aptDistUpgrade
 
 KALI_PACKAGES=kali-menu
 if [ "${TEMPLATE_FLAVOR}" = "kali" ]; then
-    KALI_PACKAGES="$KALI_PACKAGES kali-linux-full"
-elif [ "${TEMPLATE_FLAVOR}" = "kali-all" ]; then
-    KALI_PACKAGES="$KALI_PACKAGES kali-linux-all"
+    KALI_PACKAGES="$KALI_PACKAGES kali-linux-default"
+elif [ "${TEMPLATE_FLAVOR}" = "kali-large" ]; then
+    KALI_PACKAGES="$KALI_PACKAGES kali-linux-large"
+elif [ "${TEMPLATE_FLAVOR}" = "kali-everything" ]; then
+    KALI_PACKAGES="$KALI_PACKAGES kali-linux-everything"
 else
     error "TEMPLATE_FLAVOR is neither kali nor kali-all, it is: ${TEMPLATE_FLAVOR}"
 fi
