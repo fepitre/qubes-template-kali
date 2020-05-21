@@ -64,6 +64,13 @@ echo "$kali_repository_apt_line" > "${INSTALLDIR}/$kali_repository_apt_sources_l
 aptUpdate
 aptDistUpgrade
 
+## Allow downgrading versions (e.g. minor python3 deps are not satisfied)
+cat > "${INSTALLDIR}/etc/apt/preferences.d/allow-downgrade" << EOF
+Package: *
+Pin: release o=Kali
+Pin-Priority: 1001
+EOF
+
 KALI_PACKAGES=kali-menu
 if [ "${TEMPLATE_FLAVOR}" = "kali" ]; then
     KALI_PACKAGES="$KALI_PACKAGES kali-linux-default"
@@ -75,7 +82,7 @@ else
     error "TEMPLATE_FLAVOR is neither kali nor kali-all, it is: ${TEMPLATE_FLAVOR}"
 fi
 
-aptInstall $KALI_PACKAGES
+aptInstall --allow-downgrades $KALI_PACKAGES
 
 uninstallQubesRepo
 
