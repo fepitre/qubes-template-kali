@@ -61,6 +61,13 @@ $chroot_cmd apt-key --keyring "$apt_target_key" adv --fingerprint "$kali_signing
 
 echo "$kali_repository_apt_line" > "${INSTALLDIR}/$kali_repository_apt_sources_list"
 
+## We restore previous state of grub-pc because
+## upgrade fails due to /dev/xvda.
+# find the right loop device, _not_ its partition
+dev=$(df --output=source $INSTALLDIR | tail -n 1)
+dev=${dev%p?}
+echo "grub-pc grub-pc/install_devices multiselect $dev" | chroot_cmd debconf-set-selections
+
 aptUpdate
 aptDistUpgrade
 
@@ -92,6 +99,10 @@ updateLocale
 
 UWT_DEV_PASSTHROUGH="1" DEBIAN_FRONTEND="noninteractive" DEBIAN_PRIORITY="critical" DEBCONF_NOWARNINGS="yes" \
     $chroot_cmd $eatmydata_maybe apt-get ${APT_GET_OPTIONS} autoremove
+
+## We reapply the modification for grub-pc
+echo "grub-pc grub-pc/install_devices multiselect /dev/xvda" | chroot_cmd debconf-set-selections
+chroot_cmd update-grub2
 
 ## Cleanup.
 umount_all "${INSTALLDIR}/" || true
