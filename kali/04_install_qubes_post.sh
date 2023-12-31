@@ -5,14 +5,30 @@ if [ "$VERBOSE" -ge 2 -o "$DEBUG" == "1" ]; then
     set -x
 fi
 
-source "${SCRIPTSDIR}/vars.sh"
-source "${SCRIPTSDIR}/distribution.sh"
+#
+# Handle legacy builder
+#
+
+if [ -z "${FLAVORS_DIR}" ]; then
+    FLAVORS_DIR="${BUILDER_DIR}/${SRC_DIR}/template-kali"
+fi
+
+if [ -n "${SCRIPTSDIR}" ]; then
+    TEMPLATE_CONTENT_DIR="${SCRIPTSDIR}"
+fi
+
+if [ -n "${INSTALLDIR}" ]; then
+    INSTALL_DIR="${INSTALLDIR}"
+fi
+
+source "${TEMPLATE_CONTENT_DIR}/vars.sh"
+source "${TEMPLATE_CONTENT_DIR}/distribution.sh"
 
 ## Adapated from Whonix template
 ## See https://github.com/Whonix/qubes-template-whonix
 
 ## If .prepared_debootstrap has not been completed, don't continue.
-exitOnNoFile "${INSTALLDIR}/${TMPDIR}/.prepared_qubes" "prepared_qubes installation has not completed!... Exiting"
+exitOnNoFile "${INSTALL_DIR}/${TMPDIR}/.prepared_qubes" "prepared_qubes installation has not completed!... Exiting"
 
 #### '--------------------------------------------------------------------------
 info ' Trap ERR and EXIT signals and cleanup (umount)'
@@ -28,7 +44,7 @@ else
     chroot_cmd="chroot"
 fi
 
-mount --bind /dev "${INSTALLDIR}/dev"
+mount --bind /dev "${INSTALL_DIR}/dev"
 
 aptInstall apt-transport-https
 aptInstall apt-transport-tor
@@ -40,31 +56,23 @@ env
 
 [ -n "$kali_repository_uri" ] || kali_repository_uri="http://http.kali.org/kali"
 [ -n "$kali_repository_suite" ] || kali_repository_suite="kali-rolling"
-[ -n "$kali_signing_key_fingerprint" ] || kali_signing_key_fingerprint="44C6513A8E4FB3D30875F758ED444FF07D8D0BF6"
-[ -n "$kali_signing_key_file" ] || kali_signing_key_file="$BUILDER_DIR/$SRC_DIR/template-kali/keys/kali-key.asc"
-[ -n "$gpg_keyserver" ] || gpg_keyserver="keys.gnupg.net"
+[ -n "$kali_signing_key_file" ] || kali_signing_key_file="${FLAVORS_DIR}/keys/kali-archive-keyring.gpg"
 [ -n "$kali_repository_components" ] || kali_repository_components="main non-free contrib"
 [ -n "$kali_repository_apt_line" ] || kali_repository_apt_line="deb $kali_repository_uri $kali_repository_suite $kali_repository_components"
 [ -n "$kali_repository_apt_sources_list" ] || kali_repository_apt_sources_list="/etc/apt/sources.list.d/kali.list"
-[ -n "$apt_target_key" ] || apt_target_key="/etc/apt/trusted.gpg.d/kali.gpg"
+[ -n "$apt_target_key" ] || apt_target_key="/etc/apt/trusted.gpg.d/kali-archive-keyring.gpg"
 
 kali_signing_key_file_name="$(basename "$kali_signing_key_file")"
 
 test -f "$kali_signing_key_file"
-cp "$kali_signing_key_file" "${INSTALLDIR}/${TMPDIR}/${kali_signing_key_file_name}"
+cp "$kali_signing_key_file" "${INSTALL_DIR}/${apt_target_key}"
 
-$chroot_cmd test -f "${TMPDIR}/${kali_signing_key_file_name}"
-$chroot_cmd apt-key --keyring "$apt_target_key" add "${TMPDIR}/${kali_signing_key_file_name}"
-
-## Sanity test. apt-key adv would exit non-zero if not exactly that fingerprint in apt's keyring.
-$chroot_cmd apt-key --keyring "$apt_target_key" adv --fingerprint "$kali_signing_key_fingerprint"
-
-echo "$kali_repository_apt_line" > "${INSTALLDIR}/$kali_repository_apt_sources_list"
+echo "$kali_repository_apt_line" > "${INSTALL_DIR}/$kali_repository_apt_sources_list"
 
 ## We restore previous state of grub-pc because
 ## upgrade fails due to /dev/xvda.
 # find the right loop device, _not_ its partition
-dev=$(df --output=source $INSTALLDIR | tail -n 1)
+dev=$(df --output=source ${INSTALL_DIR} | tail -n 1)
 dev=${dev%p?}
 echo "grub-pc grub-pc/install_devices multiselect $dev" | chroot_cmd debconf-set-selections
 
@@ -72,7 +80,7 @@ aptUpdate
 aptDistUpgrade
 
 ## Allow downgrading versions (e.g. minor python3 deps are not satisfied)
-cat > "${INSTALLDIR}/etc/apt/preferences.d/allow-downgrade" << EOF
+cat > "${INSTALL_DIR}/etc/apt/preferences.d/allow-downgrade" << EOF
 Package: *
 Pin: release o=Kali
 Pin-Priority: 1001
@@ -98,13 +106,13 @@ uninstallQubesRepo
 updateLocale
 
 UWT_DEV_PASSTHROUGH="1" DEBIAN_FRONTEND="noninteractive" DEBIAN_PRIORITY="critical" DEBCONF_NOWARNINGS="yes" \
-    $chroot_cmd $eatmydata_maybe apt-get ${APT_GET_OPTIONS} autoremove
+    $chroot_cmd $eatmydata_maybe apt-get "${APT_GET_OPTIONS[@]}" autoremove
 
 ## We reapply the modification for grub-pc
 echo "grub-pc grub-pc/install_devices multiselect /dev/xvda" | chroot_cmd debconf-set-selections
 chroot_cmd update-grub2
 
 ## Cleanup.
-umount_all "${INSTALLDIR}/" || true
+umount_all "${INSTALL_DIR}/" || true
 trap - ERR EXIT
 trap
